@@ -20,18 +20,16 @@ module treeval (
     act // action to take
 );
 
-// define user-facing parameters
-parameter W_REWARD = 10; // can be anything from 1-14, must sum to 15 with W_ACTION
-parameter W_ACTION = 5; // can be anything from 1-14, must sum to 15 with W_REWARD
-
 // define local parameters
 localparam MAX_NUM_NODES = 1024; // statically define this
-localparam MAX_NUM_ACTIONS = 16384; // reward must be at least 1 bit => # actions can be at most remaining 14 bits
+localparam MAX_NUM_ACTIONS = 8; // constrain # of actions
 localparam NODE_SIZE = 32; // statitcally defined this
 localparam W_ADDR = 10; // based on MAX_NUM_NODES
 localparam W_WEIGHT = 7; // need 7 bits to represent values 0-100
-localparam MAX_DATA_WIDTH = 14; // maximum possible node data width based on above (weight, address, reward, action)
-localparam MAX_CONFIG_WIDTH = 14; // maximum possible config data width based on above (# nodes)
+localparam MAX_DATA_WIDTH = 12; // maximum possible node data width based on above (weight, address, reward, action)
+localparam MAX_CONFIG_WIDTH = 10; // maximum possible config data width based on above (# nodes)
+localparam W_ACTION = 3; // limit the # of distinct actions that can be taken (for now...)
+localparam W_REWARD = 12; // 12 remaining bits for reward
 
 // helpers for parsing data values within a node
 localparam PARENT_START = NODE_SIZE-1;
@@ -46,8 +44,8 @@ localparam WEIGHT_END = REWARD_END-1-W_WEIGHT;
 // define states for processing
 localparam W_STATES = 2;
 localparam PROCESS_START = 0;
-localparam PROCESS_RUN = 0;
-localparam PROCESS_DONE = 0;
+localparam PROCESS_RUN = 1;
+localparam PROCESS_DONE = 2;
 
 // declare inputs and outputs
 input reg clk,rst,mem_weight,mem_par,mem_rew,mem_act,conf_nodes;
@@ -67,6 +65,7 @@ reg commit_parent[W_ADDR-1:0]; // track the parent node to commit to
 reg num_nodes[MAX_NUM_NODES-1:0] = 1024; // track the total number of nodes in the tree
 reg [MAX_NUM_NODES-1:0] node_buff [NODE_SIZE-1:0]; // buffer for all node data
 reg [MAX_NUM_ACTIONS-1:0] act_buff [W_REWARD-1:0]; // accumulation buffer for expected rewards of all actions (for a given node)
+reg [MAX_NUM_ACTIONS-1:0] num_acts; // track # of actions for the given node
 
 // define drivers for outputs
 exp = node_buff[0][REWARD_START:REWARD_END]; // always output root node's reward
@@ -105,7 +104,7 @@ always @(posedge clk) begin
         next_state = PROCESS_COMPUTE;
     end
     else if (current_state == PROCESS_COMPUTE) begin // compare the current parent to the prior
-        reg tmp = node_buff[current_node][PARENT_START-1:PARENT_END];
+        reg tmp = node_buff[current_node][PARENT_START:PARENT_END];
         if (~(tmp == current_parent)) begin // new parent, so need to finish up here
             commit_parent = current_parent; // must save current_parent for final commit
             next_state = PROCESS_END;
@@ -121,7 +120,7 @@ end
 
 // logic block to control the value of current_parent
 always @(posedge clk) begin
-    current_parent <= node_buff[current_node][PARENT_START-1:PARENT_END];
+    current_parent <= node_buff[current_node][PARENT_START:PARENT_END];
 end
 
 // logic to handle state level processing
@@ -137,25 +136,71 @@ always @(posedge clk) begin
     end
 end
 
-// set values of all actions in the action buffer to max negative reward
-// input: # of actions so we don't have to do extra work
+// set values of all actions in the action buffer to 0 or max negative reward
+// 0 for used actions, max negative value for unused actions
+// for now, explicitly overwrite each entry => want this to happen in 1 cycle so keep things small
+// TODO: figure out how to not hardcode max negative value
 task ClearActionBuffer () begin
-    // TODO: implement
+    num_actions = 1; // must have at least 1 action
+    act_buff[0] = 0;
+    act_buff[1] = 12'b100000000000;
+    act_buff[2] = 12'b100000000000;
+    act_buff[3] = 12'b100000000000;
+    act_buff[4] = 12'b100000000000;
+    act_buff[5] = 12'b100000000000;
+    act_buff[6] = 12'b100000000000;
+    act_buff[7] = 12'b100000000000;
 endtask
 
 // multiply current_node's reward with its weight
 // then add it to current_node's action's slot in accumulation buffer
 // input: current_node's address
-task ComputePartialSum (arg1) begin
-    // TODO: implement
+// TODO: issues with multiple drivers (num_acts)?
+task ComputePartialSum () begin
+    input reg curr[W_ADDR-1:0];
+    reg r[W_REWARD-1:0], w[W_WEIGHT-1:0], a[W_ACTION-1:0];
+    reg tmp[W_REWARD-1:0];
+
+    // read relevent data for current node
+    r = node_buff[curr][REWARD_START:REWARD_END];
+    w = node_buff[curr][WEIGHT_START:WEIGHT_END];
+    a = node_buff[curr][ACTION_START:ACTION_END];
+
+    // check if this is a new action
+    // assumption is that action nodes are sequential and descending (relative to node address)
+    tmp = r*w;
+    if (a >= num_acts) begin
+        // increment num_acts and 0 out the current action
+        num_acts = num_acts + 1;
+        act_buff[a] = tmp;
+    end
+    else begin
+        act_buff[a] = act_buff[a] + tmp;
+    end
 endtask
 
 // find max expected reward in accumulation buffer
 // then write it as the reward for the parent node
 // inputs: parent node to commit to, # of actions
-task CommitMaxReward (arg1, arg2) begin
-    // TODO: implement
+// TODO: does this handle negative rewards properly??
+task CommitMaxReward () begin
+    input reg par[W_ADDR-1:0];
+    reg t1[W_REWARD-1:0],t2[W_REWARD-1:0],t3[W_REWARD-1:0],t4[W_REWARD-1:0],t5[W_REWARD-1:0],t6[W_REWARD-1:0],t7[W_REWARD-1:0];
+    
+    // find max expected reward
+    t1 = (act_buff[0] > act_buff[1]) ? act_buff[0] : act_buff[1];
+    t2 = (act_buff[2] > act_buff[3]) ? act_buff[2] : act_buff[3];
+    t3 = (act_buff[4] > act_buff[5]) ? act_buff[4] : act_buff[5];
+    t4 = (act_buff[6] > act_buff[7]) ? act_buff[6] : act_buff[7];
+    t5 = (t1 > t2) ? t1 : t0;
+    t6 = (t3 > t4) ? t3 : t4;
+    t7 = (t5 > t6) ? t5 : t6;
+   
+    // commit reward
+    node_buff[par][REWARD_START:REWARD_END] = t7;
 endtask
+
+// TODO: deal with mem actions
 
 // capture inbound node values
 // stagger with this actual processing
@@ -178,28 +223,3 @@ always @(negedge clk) begin
         num_nodes <= conf_data;
     end
 end
-
-// process a single node
-// by taking its current reward and weight, multiplying them, and adding the result to the parent's current reward
-always @(posedge clk) begin
-    reg p = mem_nodes[current_node][PARENT_START:PARENT_END]; // get current node's parent
-    reg r = mem_nodes[current_node][REWARD_START:REWARD_END]; // get current node's reward
-    reg w = mem_nodes[current_node][WEIGHT_START:WEIGHT_END]; // get current node's weight
-    mem_nodes[p] = mem_nodes[p][REWARD_START:REWARD_END] + r * w; // add weighted reward to parent's reward
-end
-
-// special task to reset all rewards to 0
-task ResetRewards () begin
-    integer i=0;
-    for (i; i<=num_nodes; i++) begin
-        node_buff[i][REWARD_START:REWARD_END] = d'0;
-    end
-endtask
-
-// special task to reset all actions to (MAX_NEG)
-task ResetActions () begin
-    integer i=0;
-    for (i; i<MAX_NUM_ACTIONS; i++) begin
-        mem_nodes[i][REWARD_START:REWARD_END] = d'0;
-    end
-endtask
