@@ -1,7 +1,3 @@
-// TODO: need to add mechanism to capture which is the optimal action for the given node
-    // this is challenging because we have many children per action
-// TODO: once implementation is finished, test. No way this passes elaboration right now...
-
 // treeval implements a backwards propagation through a decision tree
 // to compute the expected reward associated with the best initial decision to take
 module treeval (
@@ -126,7 +122,7 @@ end
 // logic to handle state level processing
 always @(posedge clk) begin
     if (current_state == PROCESS_START) begin // clear the action accumulation buffer
-        ClearActionBuffer(); // TODO: track # of actions, pass this as arg
+        ClearActionBuffer();
     end
     else if (current_state == PROCESS_COMPUTE) begin // push partial sum to action buffer
         ComputePartialSum(current_node);
@@ -139,7 +135,7 @@ end
 // set values of all actions in the action buffer to 0 or max negative reward
 // 0 for used actions, max negative value for unused actions
 // for now, explicitly overwrite each entry => want this to happen in 1 cycle so keep things small
-// TODO: figure out how to not hardcode max negative value
+// TODO: fix hardcoding when we scale up # of actions
 task ClearActionBuffer () begin
     num_actions = 1; // must have at least 1 action
     act_buff[0] = 0;
@@ -186,39 +182,97 @@ endtask
 task CommitMaxReward () begin
     input reg par[W_ADDR-1:0];
     reg t1[W_REWARD-1:0],t2[W_REWARD-1:0],t3[W_REWARD-1:0],t4[W_REWARD-1:0],t5[W_REWARD-1:0],t6[W_REWARD-1:0],t7[W_REWARD-1:0];
+    reg a1[W_ACTION-1:0],a2[W_REWARD-1:0],a3[W_ACTION-1:0],a4[W_ACTION-1:0],a5[W_ACTION-1:0],a6[W_ACTION-1:0],a7[W_ACTION-1:0];
     
     // find max expected reward
-    t1 = (act_buff[0] > act_buff[1]) ? act_buff[0] : act_buff[1];
-    t2 = (act_buff[2] > act_buff[3]) ? act_buff[2] : act_buff[3];
-    t3 = (act_buff[4] > act_buff[5]) ? act_buff[4] : act_buff[5];
-    t4 = (act_buff[6] > act_buff[7]) ? act_buff[6] : act_buff[7];
-    t5 = (t1 > t2) ? t1 : t0;
-    t6 = (t3 > t4) ? t3 : t4;
-    t7 = (t5 > t6) ? t5 : t6;
+    // TODO: truncate this giant if-else sequence somehow?
+    if (act_buff[0] > act_buff[1]) begin
+        t1 = act_buff[0];
+        a1 = 3'b000;
+    end
+    else begin
+        t1 = act_buff[1];
+        a1 = 3'b001;
+    end
+    if (act_buff[2] > act_buff[3]) begin
+        t1 = act_buff[2];
+        a1 = 3'b010;
+    end
+    else begin
+        t1 = act_buff[3];
+        a1 = 3'b011;
+    end
+    if (act_buff[4] > act_buff[5]) begin
+        t1 = act_buff[4];
+        a1 = 3'b100;
+    end
+    else begin
+        t1 = act_buff[5];
+        a1 = 3'b101;
+    end
+    if (act_buff[6] > act_buff[7]) begin
+        t1 = act_buff[6];
+        a1 = 3'b110;
+    end
+    else begin
+        t1 = act_buff[7];
+        a1 = 3'b111;
+    end
+    if (t1 > t2) begin
+        t5 = t1;
+        a5 = a1;
+    end
+    else begin
+        t5 = t2;
+        a5 = a2;
+    end
+    if (t3 > t4) begin
+        t6 = t3;
+        a6 = a3;
+    end
+    else begin
+        t6 = t4;
+        a6 = a4;
+    end
+    if (t5 > t6) begin
+        t7 = t5;
+        a7 = a5;
+    end
+    else begin
+        t7 = t6;
+        a7 = a6;
+    end
    
     // commit reward
     node_buff[par][REWARD_START:REWARD_END] = t7;
+
+    // special case if parent == root
+    // also need to commit optimal action
+    if (par == d'0) begin
+        node_buff[0][ACTION_START:ACTION_END] = a7;
+    end
 endtask
 
-// TODO: deal with mem actions
-
 // capture inbound node values
-// stagger with this actual processing
-always @(negedge clk) begin
+// this is a sideband interface of sorts
+always @(posedge clk) begin
     if (mem_weight) begin
-        mem_nodes[mem_addr][WEIGHT_START:WEIGHT_END] <= mem_data[6:0]; 
+        node_buff[mem_addr][WEIGHT_START:WEIGHT_END] <= mem_data[W_WEIGHT-1:0]; 
     end
     else if (mem_par) begin
-        mem_nodes[mem_addr][PARENT_START:PARENT_END] <= mem_data[W_ADDR-1:0];
+        node_buff[mem_addr][PARENT_START:PARENT_END] <= mem_data[W_ADDR-1:0];
     end
     else if (mem_rew) begin
-        mem_nodes[mem_addr][REWARD_START:REWARD_END] <= mem_data[W_REWARD-1:0];
+        node_buff[mem_addr][REWARD_START:REWARD_END] <= mem_data[W_REWARD-1:0];
+    end
+    else if (mem_act) begin
+        node_buff[mem_addr][ACTION_START:ACTION_END] <= mem_data[W_ACTION-1:0];
     end
 end
 
 // capture inbound config values
-// stagger with this actual processing
-always @(negedge clk) begin
+// this is a sideband interface of sorts
+always @(posedge clk) begin
     if (conf_nodes) begin
         num_nodes <= conf_data;
     end
