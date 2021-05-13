@@ -160,13 +160,13 @@ task tskSetActions;
         mem_data = ACT_PLAY; // action = play
         #(CLOCK);
         mem_addr = 10'b0000000011; // node 3
-        mem_data = ACT_NO_PLAY; // action = play
+        mem_data = ACT_NO_PLAY; // action = no play
         #(CLOCK);
         mem_addr = 10'b0000000100; // node 4
-        mem_data = ACT_PLAY; // action = no play
+        mem_data = ACT_PLAY; // action = play
         #(CLOCK);
         mem_addr = 10'b0000000101; // node 5
-        mem_data = ACT_PLAY; // action = no play
+        mem_data = ACT_PLAY; // action = play
         #(CLOCK);
         mem_addr = 10'b0000000110; // node 6
         mem_data = ACT_NO_PLAY; // action = no play
@@ -177,69 +177,43 @@ task tskSetActions;
     end
 endtask
 
-// TODO: add automatic verification of signals (for now, manually verify)
-// ensure count is incremented properly (+60 seconds)
-task tskAdd1;
+task tskSetTreeWeights;
     begin
-       add1 = 1;
-       #(CLOCK) add1 = 0;
-       #(500*CLOCK);
+        mem_weight = 1;
+        mem_addr = 10'b0000000001; // node 1
+        mem_data = 12'b000001000000; // weight = .5 = 64
+        #(CLOCK);
+        mem_addr = 10'b0000000010; // node 2
+        mem_data = 12'b000001000000; // weight = .5 = 64
+        #(CLOCK);
+        mem_addr = 10'b0000000011; // node 3
+        mem_data = 12'b000001100100; // weight = 100
+        #(CLOCK);
+        mem_addr = 10'b0000000100; // node 4
+        mem_data = 12'b000001000000; // weight = .5 = 64
+        #(CLOCK);
+        mem_addr = 10'b0000000101; // node 5
+        mem_data = 12'b000001000000; // weight = .5 = 64
+        #(CLOCK);
+        mem_addr = 10'b0000000110; // node 6
+        mem_data = 12'b000001111111; // weight = 1 = 127 TODO: is this good enough?
+        #(CLOCK);
+        mem_weight = 0;
+        mem_addr = 10'b0000000000;
+        mem_data = 12'b000000000000;
     end
 endtask
 
-// TODO: add automatic verification of signals (for now, manually verify)
-// ensure count is incremented properly (+120 seconds)
-task tskAdd2;
+task tskVerifyOutput;
     begin
-       add2 = 1;
-       #(CLOCK) add2 = 0;
-       #(500*CLOCK);
-    end
-endtask
-
-// TODO: add automatic verification of signals (for now, manually verify)
-// ensure count is incremented properly (+180 seconds)
-task tskAdd3;
-    begin
-       add3 = 1;
-       #(CLOCK) add3 = 0;
-       #(500*CLOCK);
-    end
-endtask
-
-// TODO: add automatic verification of signals (for now, manually verify)
-// ensure count is reset properly (150 seconds)
-task tskReset2;
-    begin
-       rst2 = 1;
-       #(CLOCK) rst2 = 0;
-       #(500*CLOCK);
-    end
-endtask
-
-// TODO: add automatic verification of signals (for now, manually verify)
-// ensure display transitions properly when going from a high count to a mid count
-task tskHighToMid;
-    begin
-       rst2 = 1;
-       #(CLOCK) rst2 = 0; add1 = 1;
-       #(CLOCK) add1 = 0; // 210 seconds
-       #(3200*CLOCK);
-    end
-endtask
-
-// TODO: add automatic verification of signals (for now, manually verify)
-// ensure count sticks at 9999
-task tskAddOverflow;
-    integer j;
-    begin
-        for (j=0;j<34;j=j+1) // 300 * 34 > 10000
-        begin
-            add4 = 1;
-            #(CLOCK) add4 = 0;
-            #(CLOCK);
-        end
-        #(500*CLOCK);
+       rst = 1;
+       #(CLOCK);
+       rst = 0;
+       #(10*CLOCK); // TODO: how long should this be?? (1 + 3 + 1)*2
+       if (~(exp_change == 1 && act == ACT_PLAY)) begin
+           logError("Simple", "output_check");
+       end
+       // TODO: check exp?
     end
 endtask
 
@@ -249,12 +223,8 @@ task logError;
     begin
         $display ("%d ... Failed test %s: %s", 
                     $stime, testName, msg);
-        $display ("outputs: %04b, %04b, %04b, %04b, %04b, %07b", 
-                    {a1,a2,a3,a4}, val1, val2, val3, val4, led_seg);
         $fwrite (out, "%d ... Failed test %s: %s", 
                     $stime, testName, msg);
-        $fwrite (out, "outputs: %04b, %04b, %04b, %04b, %04b, %07b", 
-                    {a1,a2,a3,a4}, val1, val2, val3, val4, led_seg);
         nErr = nErr + 1;
     end
 endtask
