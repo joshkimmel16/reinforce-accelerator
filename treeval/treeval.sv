@@ -43,24 +43,16 @@ module treeval (
     output logic [W_ACTION-1:0] act // action to take
 );
 
-// declare inputs and outputs
-//input clk,rst,mem_weight,mem_par,mem_rew,mem_act,conf_nodes;
-//input [W_ADDR-1:0] mem_addr;
-//input [MAX_DATA_WIDTH-1:0] mem_data;
-//input [MAX_CONFIG_WIDTH-1:0] conf_data;
-//output reg exp_change;
-//output reg signed [W_REWARD-1:0] exp;
-//output reg [W_ACTION-1:0] act;
-
 // internal state elements
 logic [W_STATES-1:0] current_state; // current state determines what must happen in the given cycle
 logic [W_STATES-1:0] next_state; // next state determines what current_state changes to
 logic [W_ADDR-1:0] current_node = 1023; // track the current node we are processing
 logic [W_ADDR-1:0] current_parent; // track the current parent node being processing
+logic [W_ADDR-1:0] next_parent; // track the next parent node being processing
 logic [W_ADDR-1:0] commit_parent; // track the parent node to commit to
 logic [MAX_NUM_NODES-1:0] num_nodes = 1024; // track the total number of nodes in the tree
-logic [MAX_NUM_NODES-1:0] node_buff [NODE_SIZE-1:0]; // buffer for all node data
-logic signed [MAX_NUM_ACTIONS-1:0] act_buff [W_REWARD-1:0]; // accumulation buffer for expected rewards of all actions (for a given node)
+logic [NODE_SIZE-1:0] node_buff [MAX_NUM_NODES-1:0]; // buffer for all node data
+logic signed [W_REWARD-1:0] act_buff [MAX_NUM_ACTIONS-1:0]; // accumulation buffer for expected rewards of all actions (for a given node)
 logic [MAX_NUM_ACTIONS-1:0] num_acts; // track # of actions for the given node
 
 // define drivers for outputs
@@ -68,17 +60,23 @@ assign exp = node_buff[0][REWARD_START:REWARD_END]; // always output root node's
 assign act = node_buff[0][ACTION_START:ACTION_END]; // always output root node's action
 assign exp_change = (current_node == num_nodes-1); // once we've cycled back to the final node, indicate that the expectation must have changed
 
+// initialize root node values that need to be initialized
+initial begin
+    node_buff[0][PARENT_START:PARENT_END] = 10'b1111111111; // initalize root's parent to max node value so it can't match any other parent
+    node_buff[0][WEIGHT_START:WEIGHT_END] = 7'b0000000; // initalize root's weight to anything known
+end
+
 // logic to update which node is being processed
 always @(posedge clk) begin
     if (rst) begin // if reset, go back to final node
         current_node <= num_nodes-1;
     end
-    else if (current_state == PROCESS_COMPUTE) begin // when running, move to next node
+    else if (next_state == PROCESS_COMPUTE) begin // when running, move to next node
         if (current_node == 1) begin // don't actually process root node, go back to final node
             current_node <= num_nodes-1;
         end
         else begin // decrement node counter
-            current_node <= current_node - 1;
+            current_node <= current_node-1;
         end
     end
 end
@@ -93,15 +91,36 @@ always @(posedge clk) begin
     end
 end
 
+// logic block to control the value of current_parent
+// need to look ahead by 1 because of sequential logic
+always @(posedge clk) begin
+    if (rst) begin // if reset, go back to final node
+        current_parent <= node_buff[num_nodes-1][PARENT_START:PARENT_END];
+        next_parent <= node_buff[num_nodes-2][PARENT_START:PARENT_END];
+    end
+    else if (current_state == PROCESS_COMPUTE) begin // when running, move to next node
+        if (current_node == 1) begin // don't actually process root node, go back to final node
+            current_parent <= node_buff[num_nodes-1][PARENT_START:PARENT_END];
+            next_parent <= node_buff[num_nodes-2][PARENT_START:PARENT_END];
+        end
+        else begin // decrement node counter
+            current_parent <= node_buff[current_node-1][PARENT_START:PARENT_END];
+            next_parent <= node_buff[current_node-2][PARENT_START:PARENT_END];
+        end
+    end
+end
+
 // logic to control the value of next_state
 // this block is also the driver of commit_parent
-always @(posedge clk) begin
+always_comb begin
     if (current_state == PROCESS_START) begin // assume start takes 1 cycle
+        commit_parent = current_parent;
         next_state = PROCESS_COMPUTE;
     end
     else if (current_state == PROCESS_COMPUTE) begin // compare the current parent to the prior
-        if (~(node_buff[current_node][PARENT_START:PARENT_END] == current_parent)) begin // new parent, so need to finish up here
-            commit_parent = current_parent; // must save current_parent for final commit
+        if (~(next_parent == current_parent)) begin // new parent, so need to finish up here
+            // must save current_parent for final commit
+            commit_parent = current_parent;
             next_state = PROCESS_DONE;
         end
         else begin
@@ -113,13 +132,8 @@ always @(posedge clk) begin
     end
 end
 
-// logic block to control the value of current_parent
-always @(posedge clk) begin
-    current_parent <= node_buff[current_node][PARENT_START:PARENT_END];
-end
-
 // logic to handle state level processing
-always @(posedge clk) begin
+always_comb begin
     if (current_state == PROCESS_START) begin // clear the action accumulation buffer
         ClearActionBuffer();
     end
