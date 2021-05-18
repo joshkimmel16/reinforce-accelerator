@@ -28,19 +28,19 @@ localparam PROCESS_DONE = 2;
 // treeval implements a backwards propagation through a decision tree
 // to compute the expected reward associated with the best initial decision to take
 module treeval (
-    input wire clk, // clock 
-    input wire rst, // reset
-    input wire mem_weight, // data on mem_data line should be read and is a weight 
-    input wire mem_par, // data on mem_data line should be read and is a parent
-    input wire mem_rew, // data on mem_data line should be read and is a reward
-    input wire mem_act, // data on mem_data line should be read and is an action
-    input wire [W_ADDR-1:0] mem_addr, // data on mem_data corresponds to which node
-    input wire [MAX_DATA_WIDTH-1:0] mem_data, // node-specific data to capture
-    input wire conf_nodes, // data on conf_data line should be read and is the node count
-    input wire [MAX_CONFIG_WIDTH-1:0] conf_data, // config-specific data to capture
-    output wire exp_change, // pulse to indicate new expectation computed
-    output wire signed [W_REWARD-1:0] exp, // computed expectation value
-    output wire [W_ACTION-1:0] act // action to take
+    input logic clk, // clock 
+    input logic rst, // reset
+    input logic mem_weight, // data on mem_data line should be read and is a weight 
+    input logic mem_par, // data on mem_data line should be read and is a parent
+    input logic mem_rew, // data on mem_data line should be read and is a reward
+    input logic mem_act, // data on mem_data line should be read and is an action
+    input logic [W_ADDR-1:0] mem_addr, // data on mem_data corresponds to which node
+    input logic [MAX_DATA_WIDTH-1:0] mem_data, // node-specific data to capture
+    input logic conf_nodes, // data on conf_data line should be read and is the node count
+    input logic [MAX_CONFIG_WIDTH-1:0] conf_data, // config-specific data to capture
+    output logic exp_change, // pulse to indicate new expectation computed
+    output logic signed [W_REWARD-1:0] exp, // computed expectation value
+    output logic [W_ACTION-1:0] act // action to take
 );
 
 // declare inputs and outputs
@@ -53,15 +53,15 @@ module treeval (
 //output reg [W_ACTION-1:0] act;
 
 // internal state elements
-reg [W_STATES-1:0] current_state; // current state determines what must happen in the given cycle
-reg [W_STATES-1:0] next_state; // next state determines what current_state changes to
-reg [W_ADDR-1:0] current_node = 1023; // track the current node we are processing
-reg [W_ADDR-1:0] current_parent; // track the current parent node being processing
-reg [W_ADDR-1:0] commit_parent; // track the parent node to commit to
-reg [MAX_NUM_NODES-1:0] num_nodes = 1024; // track the total number of nodes in the tree
-reg [MAX_NUM_NODES-1:0] node_buff [NODE_SIZE-1:0]; // buffer for all node data
-reg signed [MAX_NUM_ACTIONS-1:0] act_buff [W_REWARD-1:0]; // accumulation buffer for expected rewards of all actions (for a given node)
-reg [MAX_NUM_ACTIONS-1:0] num_acts; // track # of actions for the given node
+logic [W_STATES-1:0] current_state; // current state determines what must happen in the given cycle
+logic [W_STATES-1:0] next_state; // next state determines what current_state changes to
+logic [W_ADDR-1:0] current_node = 1023; // track the current node we are processing
+logic [W_ADDR-1:0] current_parent; // track the current parent node being processing
+logic [W_ADDR-1:0] commit_parent; // track the parent node to commit to
+logic [MAX_NUM_NODES-1:0] num_nodes = 1024; // track the total number of nodes in the tree
+logic [MAX_NUM_NODES-1:0] node_buff [NODE_SIZE-1:0]; // buffer for all node data
+logic signed [MAX_NUM_ACTIONS-1:0] act_buff [W_REWARD-1:0]; // accumulation buffer for expected rewards of all actions (for a given node)
+logic [MAX_NUM_ACTIONS-1:0] num_acts; // track # of actions for the given node
 
 // define drivers for outputs
 assign exp = node_buff[0][REWARD_START:REWARD_END]; // always output root node's reward
@@ -180,11 +180,11 @@ endtask
 // TODO: issues with multiple drivers (num_acts)?
 // TODO: non-normalized weights are a problem... => how to divide by 100?
 task ComputePartialSum;
-    input reg [W_ADDR-1:0] curr;
-    reg signed [W_REWARD-1:0] r;
-    reg [W_WEIGHT-1:0] w; 
-    reg [W_ACTION-1:0] a;
-    reg signed [W_REWARD-1:0] tmp;
+    input logic [W_ADDR-1:0] curr;
+    logic signed [W_REWARD-1:0] r;
+    logic [W_WEIGHT-1:0] w; 
+    logic [W_ACTION-1:0] a;
+    logic signed [W_REWARD-1:0] tmp;
     begin
         // read relevent data for current node
         r = node_buff[curr][REWARD_START:REWARD_END];
@@ -210,21 +210,21 @@ endtask
 // inputs: parent node to commit to, # of actions
 // TODO: does this handle negative rewards properly??
 task CommitMaxReward;
-    input reg [W_ADDR-1:0] par;
-    reg [W_REWARD-1:0] t1; 
-    reg [W_REWARD-1:0] t2; 
-    reg [W_REWARD-1:0] t3;
-    reg [W_REWARD-1:0] t4; 
-    reg [W_REWARD-1:0] t5; 
-    reg [W_REWARD-1:0] t6;
-    reg [W_REWARD-1:0] t7;
-    reg [W_ACTION-1:0] a1;
-    reg [W_ACTION-1:0] a2;
-    reg [W_ACTION-1:0] a3;
-    reg [W_ACTION-1:0] a4;
-    reg [W_ACTION-1:0] a5;
-    reg [W_ACTION-1:0] a6;
-    reg [W_ACTION-1:0] a7;
+    input logic [W_ADDR-1:0] par;
+    logic [W_REWARD-1:0] t1; 
+    logic [W_REWARD-1:0] t2; 
+    logic [W_REWARD-1:0] t3;
+    logic [W_REWARD-1:0] t4; 
+    logic [W_REWARD-1:0] t5; 
+    logic [W_REWARD-1:0] t6;
+    logic [W_REWARD-1:0] t7;
+    logic [W_ACTION-1:0] a1;
+    logic [W_ACTION-1:0] a2;
+    logic [W_ACTION-1:0] a3;
+    logic [W_ACTION-1:0] a4;
+    logic [W_ACTION-1:0] a5;
+    logic [W_ACTION-1:0] a6;
+    logic [W_ACTION-1:0] a7;
     begin
         // find max expected reward
         // TODO: truncate this giant if-else sequence somehow?

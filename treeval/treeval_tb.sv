@@ -14,23 +14,23 @@ localparam W_ACTION = 3;
 localparam ACT_PLAY = 3'b001;
 localparam ACT_NO_PLAY = 3'b000;
 
-reg clk;
-reg rst;
+logic clk;
+logic rst;
 
 // inputs
-reg mem_weight;
-reg mem_par;
-reg mem_rew;
-reg mem_act;
-reg [W_ADDR-1:0] mem_addr;
-reg [W_N_DATA-1:0] mem_data;
-reg conf_nodes;
-reg [W_C_DATA-1:0] conf_data;
+logic mem_weight;
+logic mem_par;
+logic mem_rew;
+logic mem_act;
+logic [W_ADDR-1:0] mem_addr;
+logic [W_N_DATA-1:0] mem_data;
+logic conf_nodes;
+logic [W_C_DATA-1:0] conf_data;
 
 // outputs
-wire exp_change;
-wire [W_REWARD-1: 0] exp;
-wire [W_ACTION-1:0] act;
+logic exp_change;
+logic [W_REWARD-1: 0] exp;
+logic [W_ACTION-1:0] act;
 
 treeval DUT (
     .clk(clk),
@@ -218,8 +218,8 @@ task tskVerifyOutput;
 endtask
 
 task logError;
-    input reg[30*8:0] testName;
-    input reg[100*8:0] msg;
+    input logic[30*8:0] testName;
+    input logic[100*8:0] msg;
     begin
         $display ("%d ... Failed test %s: %s", 
                     $stime, testName, msg);
