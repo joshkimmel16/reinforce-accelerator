@@ -58,7 +58,7 @@ begin
 end
 
 initial begin
-    clk = 1;
+    clk = 0;
     rst = 0;
     mem_weight = 0;
     mem_par = 0;

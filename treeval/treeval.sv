@@ -51,8 +51,8 @@ logic [W_ADDR-1:0] current_parent; // track the current parent node being proces
 logic [W_ADDR-1:0] next_parent; // track the next parent node being processing
 logic [W_ADDR-1:0] commit_parent; // track the parent node to commit to
 logic [MAX_NUM_NODES-1:0] num_nodes = 1024; // track the total number of nodes in the tree
-logic [NODE_SIZE-1:0] node_buff [MAX_NUM_NODES-1:0]; // buffer for all node data
-logic signed [W_REWARD-1:0] act_buff [MAX_NUM_ACTIONS-1:0]; // accumulation buffer for expected rewards of all actions (for a given node)
+logic [MAX_NUM_NODES-1:0][NODE_SIZE-1:0] node_buff; // buffer for all node data
+logic signed [MAX_NUM_ACTIONS-1:0][W_REWARD-1:0] act_buff; // accumulation buffer for expected rewards of all actions (for a given node)
 logic [MAX_NUM_ACTIONS-1:0] num_acts; // track # of actions for the given node
 
 // define drivers for outputs
@@ -71,7 +71,7 @@ always @(posedge clk) begin
     if (rst) begin // if reset, go back to final node
         current_node <= num_nodes-1;
     end
-    else if (next_state == PROCESS_COMPUTE) begin // when running, move to next node
+    else if ((current_state == PROCESS_COMPUTE && next_state == PROCESS_COMPUTE) || (current_state == PROCESS_DONE && next_state == PROCESS_START)) begin // when running, move to next node
         if (current_node == 1) begin // don't actually process root node, go back to final node
             current_node <= num_nodes-1;
         end
@@ -113,7 +113,10 @@ end
 // logic to control the value of next_state
 // this block is also the driver of commit_parent
 always_comb begin
-    if (current_state == PROCESS_START) begin // assume start takes 1 cycle
+    if (rst) begin
+        next_state = PROCESS_START;
+    end
+    else if (current_state == PROCESS_START) begin // assume start takes 1 cycle
         commit_parent = current_parent;
         next_state = PROCESS_COMPUTE;
     end
@@ -133,7 +136,7 @@ always_comb begin
 end
 
 // logic to handle state level processing
-always_comb begin
+always @(posedge clk) begin
     if (current_state == PROCESS_START) begin // clear the action accumulation buffer
         ClearActionBuffer();
     end
@@ -176,15 +179,15 @@ end
 // TODO: fix hardcoding when we scale up # of actions
 task ClearActionBuffer; 
     begin
-        num_acts = 1; // must have at least 1 action
-        act_buff[0] = 0;
-        act_buff[1] = 12'b100000000000;
-        act_buff[2] = 12'b100000000000;
-        act_buff[3] = 12'b100000000000;
-        act_buff[4] = 12'b100000000000;
-        act_buff[5] = 12'b100000000000;
-        act_buff[6] = 12'b100000000000;
-        act_buff[7] = 12'b100000000000;
+        num_acts <= 0; // must have at least 1 action
+        act_buff[0] <= 0;
+        act_buff[1] <= 12'b100000000000;
+        act_buff[2] <= 12'b100000000000;
+        act_buff[3] <= 12'b100000000000;
+        act_buff[4] <= 12'b100000000000;
+        act_buff[5] <= 12'b100000000000;
+        act_buff[6] <= 12'b100000000000;
+        act_buff[7] <= 12'b100000000000;
     end
 endtask
 
@@ -208,7 +211,7 @@ task ComputePartialSum;
         // check if this is a new action
         // assumption is that action nodes are sequential and descending (relative to node address)
         tmp = r*w;
-        if (a >= num_acts) begin
+        if (a > num_acts) begin
             // increment num_acts and 0 out the current action
             num_acts = num_acts + 1;
             act_buff[a] = tmp;
