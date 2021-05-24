@@ -194,23 +194,23 @@ endtask
 // multiply current_node's reward with its weight
 // then add it to current_node's action's slot in accumulation buffer
 // input: current_node's address
-// TODO: issues with multiple drivers (num_acts)?
 // TODO: non-normalized weights are a problem... => how to divide by 100?
 task ComputePartialSum;
     input logic [W_ADDR-1:0] curr;
     logic signed [W_REWARD-1:0] r;
-    logic [W_WEIGHT-1:0] w; 
+    logic signed [W_WEIGHT:0] w; 
     logic [W_ACTION-1:0] a;
-    logic signed [W_REWARD-1:0] tmp;
+    //logic signed [W_REWARD+W_WEIGHT-1:0] tmp;
+    logic signed [19:0] tmp; // TODO: remove hardcode
     begin
         // read relevent data for current node
         r = node_buff[curr][REWARD_START:REWARD_END];
-        w = node_buff[curr][WEIGHT_START:WEIGHT_END];
+        w = {1'b0, node_buff[curr][WEIGHT_START:WEIGHT_END]}; // must manually sign-extend the unsigned value
         a = node_buff[curr][ACTION_START:ACTION_END];
 
         // check if this is a new action
         // assumption is that action nodes are sequential and descending (relative to node address)
-        tmp = r*w;
+        tmp = (r*w) >>> W_WEIGHT;
         if (a > num_acts) begin
             // increment num_acts and 0 out the current action
             num_acts = num_acts + 1;
@@ -224,17 +224,17 @@ endtask
 
 // find max expected reward in accumulation buffer
 // then write it as the reward for the parent node
-// inputs: parent node to commit to, # of actions
-// TODO: does this handle negative rewards properly??
+// inputs: parent node to commit to
+// TODO: refactor when # of actions is variable/larger
 task CommitMaxReward;
     input logic [W_ADDR-1:0] par;
-    logic [W_REWARD-1:0] t1; 
-    logic [W_REWARD-1:0] t2; 
-    logic [W_REWARD-1:0] t3;
-    logic [W_REWARD-1:0] t4; 
-    logic [W_REWARD-1:0] t5; 
-    logic [W_REWARD-1:0] t6;
-    logic [W_REWARD-1:0] t7;
+    logic signed [W_REWARD-1:0] t1; 
+    logic signed [W_REWARD-1:0] t2; 
+    logic signed [W_REWARD-1:0] t3;
+    logic signed [W_REWARD-1:0] t4; 
+    logic signed [W_REWARD-1:0] t5; 
+    logic signed [W_REWARD-1:0] t6;
+    logic signed [W_REWARD-1:0] t7;
     logic [W_ACTION-1:0] a1;
     logic [W_ACTION-1:0] a2;
     logic [W_ACTION-1:0] a3;
@@ -254,28 +254,28 @@ task CommitMaxReward;
             a1 = 3'b001;
         end
         if (act_buff[2] > act_buff[3]) begin
-            t1 = act_buff[2];
-            a1 = 3'b010;
+            t2 = act_buff[2];
+            a2 = 3'b010;
         end
         else begin
-            t1 = act_buff[3];
-            a1 = 3'b011;
+            t2 = act_buff[3];
+            a2 = 3'b011;
         end
         if (act_buff[4] > act_buff[5]) begin
-            t1 = act_buff[4];
-            a1 = 3'b100;
+            t3 = act_buff[4];
+            a3 = 3'b100;
         end
         else begin
-            t1 = act_buff[5];
-            a1 = 3'b101;
+            t3 = act_buff[5];
+            a3 = 3'b101;
         end
         if (act_buff[6] > act_buff[7]) begin
-            t1 = act_buff[6];
-            a1 = 3'b110;
+            t4 = act_buff[6];
+            a4 = 3'b110;
         end
         else begin
-            t1 = act_buff[7];
-            a1 = 3'b111;
+            t4 = act_buff[7];
+            a4 = 3'b111;
         end
         if (t1 > t2) begin
             t5 = t1;
@@ -303,7 +303,7 @@ task CommitMaxReward;
         end
     
         // commit reward
-        node_buff[par][REWARD_START:REWARD_END] = t7 >> 7; // divide-by-128 to normalize
+        node_buff[par][REWARD_START:REWARD_END] = t7;
 
         // special case if parent == root
         // also need to commit optimal action
