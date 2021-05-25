@@ -6,9 +6,9 @@ module treeval_tb;
 
 localparam CLOCK = 10; // 100 MHz
 localparam W_ADDR = 10;
-localparam W_N_DATA = 12;
+localparam W_N_DATA = 11;
 localparam W_C_DATA = 10;
-localparam W_REWARD = 12;
+localparam W_REWARD = 11;
 localparam W_ACTION = 3;
 
 localparam ACT_PLAY = 3'b001;
@@ -102,26 +102,26 @@ task tskTreeStruct;
     begin
         mem_par = 1;
         mem_addr = 10'b0000000001; // node 1
-        mem_data = 12'b000000000000; // node 0 is parent
+        mem_data = 11'b00000000000; // node 0 is parent
         #(CLOCK);
         mem_addr = 10'b0000000010; // node 2
-        mem_data = 12'b000000000000; // node 0 is parent
+        mem_data = 11'b00000000000; // node 0 is parent
         #(CLOCK);
         mem_addr = 10'b0000000011; // node 3
-        mem_data = 12'b000000000000; // node 0 is parent
+        mem_data = 11'b00000000000; // node 0 is parent
         #(CLOCK);
         mem_addr = 10'b0000000100; // node 4
-        mem_data = 12'b000000000001; // node 1 is parent
+        mem_data = 11'b00000000001; // node 1 is parent
         #(CLOCK);
         mem_addr = 10'b0000000101; // node 5
-        mem_data = 12'b000000000001; // node 1 is parent
+        mem_data = 11'b00000000001; // node 1 is parent
         #(CLOCK);
         mem_addr = 10'b0000000110; // node 6
-        mem_data = 12'b000000000001; // node 1 is parent
+        mem_data = 11'b00000000001; // node 1 is parent
         #(CLOCK);
         mem_par = 0;
         mem_addr = 10'b0000000000;
-        mem_data = 12'b000000000000;
+        mem_data = 11'b00000000000;
     end
 endtask
 
@@ -129,23 +129,23 @@ task tskSetRewards;
     begin
         mem_rew = 1;
         mem_addr = 10'b0000000010; // node 2 = leaf
-        mem_data = 12'b111111110110; // reward = -10 (2's complement)
+        mem_data = 11'b11111110110; // reward = -10 (2's complement)
         #(CLOCK);
         mem_addr = 10'b0000000011; // node 3 = leaf
-        mem_data = 12'b000000000000; // reward = 0
+        mem_data = 11'b00000000000; // reward = 0
         #(CLOCK);
         mem_addr = 10'b0000000100; // node 4 = leaf
-        mem_data = 12'b000001100100; // reward = 100
+        mem_data = 11'b00001100100; // reward = 100
         #(CLOCK);
         mem_addr = 10'b0000000101; // node 5 = leaf
-        mem_data = 12'b111111001110; // reward = -50 (2's complement)
+        mem_data = 11'b11111001110; // reward = -50 (2's complement)
         #(CLOCK);
         mem_addr = 10'b0000000110; // node 6 = leaf
-        mem_data = 12'b000000001010; // reward = 10
+        mem_data = 11'b00000001010; // reward = 10
         #(CLOCK);
         mem_rew = 0;
         mem_addr = 10'b0000000000;
-        mem_data = 12'b000000000000;
+        mem_data = 11'b00000000000;
     end
 endtask
 
@@ -173,7 +173,7 @@ task tskSetActions;
         #(CLOCK);
         mem_act = 0;
         mem_addr = 10'b0000000000;
-        mem_data = 12'b000000000000;
+        mem_data = 11'b00000000000;
     end
 endtask
 
@@ -181,26 +181,26 @@ task tskSetTreeWeights;
     begin
         mem_weight = 1;
         mem_addr = 10'b0000000001; // node 1
-        mem_data = 12'b000001000000; // weight = .5 = 64
+        mem_data = 11'b00001000000; // weight = .5 = 64
         #(CLOCK);
         mem_addr = 10'b0000000010; // node 2
-        mem_data = 12'b000001000000; // weight = .5 = 64
+        mem_data = 11'b00001000000; // weight = .5 = 64
         #(CLOCK);
         mem_addr = 10'b0000000011; // node 3
-        mem_data = 12'b000001100100; // weight = 100
+        mem_data = 11'b00010000000; // weight = 1 = 128
         #(CLOCK);
         mem_addr = 10'b0000000100; // node 4
-        mem_data = 12'b000001000000; // weight = .5 = 64
+        mem_data = 11'b00001000000; // weight = .5 = 64
         #(CLOCK);
         mem_addr = 10'b0000000101; // node 5
-        mem_data = 12'b000001000000; // weight = .5 = 64
+        mem_data = 11'b00001000000; // weight = .5 = 64
         #(CLOCK);
         mem_addr = 10'b0000000110; // node 6
-        mem_data = 12'b000001111111; // weight = 1 = 127 TODO: is this good enough?
+        mem_data = 11'b00010000000; // weight = 1 = 128
         #(CLOCK);
         mem_weight = 0;
         mem_addr = 10'b0000000000;
-        mem_data = 12'b000000000000;
+        mem_data = 11'b00000000000;
     end
 endtask
 

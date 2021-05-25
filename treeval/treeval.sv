@@ -3,11 +3,11 @@ localparam MAX_NUM_NODES = 1024; // statically define this
 localparam MAX_NUM_ACTIONS = 8; // constrain # of actions
 localparam NODE_SIZE = 32; // statitcally defined this
 localparam W_ADDR = 10; // based on MAX_NUM_NODES
-localparam W_WEIGHT = 7; // need 7 bits to represent values 0-100
-localparam MAX_DATA_WIDTH = 12; // maximum possible node data width based on above (weight, address, reward, action)
+localparam W_WEIGHT = 8; // need 8 bits to represent values 0-128
+localparam MAX_DATA_WIDTH = 11; // maximum possible node data width based on above (weight, address, reward, action)
 localparam MAX_CONFIG_WIDTH = 10; // maximum possible config data width based on above (# nodes)
 localparam W_ACTION = 3; // limit the # of distinct actions that can be taken (for now...)
-localparam W_REWARD = 12; // 12 remaining bits for reward
+localparam W_REWARD = 11; // 11 remaining bits for reward
 
 // helpers for parsing data values within a node
 localparam PARENT_START = NODE_SIZE-1;
@@ -63,7 +63,7 @@ assign exp_change = (current_node == num_nodes-1); // once we've cycled back to 
 // initialize root node values that need to be initialized
 initial begin
     node_buff[0][PARENT_START:PARENT_END] = 10'b1111111111; // initalize root's parent to max node value so it can't match any other parent
-    node_buff[0][WEIGHT_START:WEIGHT_END] = 7'b0000000; // initalize root's weight to anything known
+    node_buff[0][WEIGHT_START:WEIGHT_END] = 8'b00000000; // initalize root's weight to anything known
 end
 
 // logic to update which node is being processed
@@ -181,27 +181,26 @@ task ClearActionBuffer;
     begin
         num_acts <= 0; // must have at least 1 action
         act_buff[0] <= 0;
-        act_buff[1] <= 12'b100000000000;
-        act_buff[2] <= 12'b100000000000;
-        act_buff[3] <= 12'b100000000000;
-        act_buff[4] <= 12'b100000000000;
-        act_buff[5] <= 12'b100000000000;
-        act_buff[6] <= 12'b100000000000;
-        act_buff[7] <= 12'b100000000000;
+        act_buff[1] <= 11'b10000000000;
+        act_buff[2] <= 11'b10000000000;
+        act_buff[3] <= 11'b10000000000;
+        act_buff[4] <= 11'b10000000000;
+        act_buff[5] <= 11'b10000000000;
+        act_buff[6] <= 11'b10000000000;
+        act_buff[7] <= 11'b10000000000;
     end
 endtask
 
 // multiply current_node's reward with its weight
 // then add it to current_node's action's slot in accumulation buffer
 // input: current_node's address
-// TODO: non-normalized weights are a problem... => how to divide by 100?
+// TODO: truncation is a problem => integer division can cause different rewards (for a fixed weight) to map to the same expectation...
 task ComputePartialSum;
     input logic [W_ADDR-1:0] curr;
     logic signed [W_REWARD-1:0] r;
     logic signed [W_WEIGHT:0] w; 
     logic [W_ACTION-1:0] a;
-    //logic signed [W_REWARD+W_WEIGHT-1:0] tmp;
-    logic signed [19:0] tmp; // TODO: remove hardcode
+    logic signed [W_REWARD+W_WEIGHT-1:0] tmp; // need this to be big enough s.t. overflow cannot occur
     begin
         // read relevent data for current node
         r = node_buff[curr][REWARD_START:REWARD_END];
@@ -210,7 +209,7 @@ task ComputePartialSum;
 
         // check if this is a new action
         // assumption is that action nodes are sequential and descending (relative to node address)
-        tmp = (r*w) >>> W_WEIGHT;
+        tmp = (r*w) >>> (W_WEIGHT-1); // (W_WEIGHT-1) b/c need an extra bit for 128 case
         if (a > num_acts) begin
             // increment num_acts and 0 out the current action
             num_acts = num_acts + 1;
