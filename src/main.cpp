@@ -23,7 +23,7 @@ int main(int argc, char* argv[]) {
     
     // Time the ru
     auto start = std::chrono::high_resolution_clock::now();
-    float a = treeval(&node_0);
+    int a = treeval(&node_0);
     auto stop = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(stop - start);
     std::cout << duration.count() << std::endl;

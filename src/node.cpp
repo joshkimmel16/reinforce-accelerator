@@ -1,5 +1,5 @@
 #include "node.h"
 
-Node::Node() : val(0), p(1) {}
+Node::Node() : val(0), weight(1) {}
 
-Node::Node(int val, float p) : val(val), p(p) {}
+Node::Node(int val, int weight) : val(val), weight(weight) {}

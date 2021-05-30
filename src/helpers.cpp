@@ -3,14 +3,13 @@
 Node* generate(){
 
 }
-
-float treeval(Node *root){
+int treeval(Node *root){
     if(root->children.empty()) {
-        return root->val * root->p;
+        return root->val * root->weight;
     }
-    float ev = 0;
+    int ev = 0;
     for (auto node : root->children) {
         ev += treeval(node);
     }
-    return ev * root->p;
+    return ev * root->weight;
 }

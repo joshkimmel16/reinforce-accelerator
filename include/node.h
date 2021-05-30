@@ -4,10 +4,10 @@
 
 struct Node {
     int val;
-    float p;
+    int weight;
     std::vector<Node *> children;
     Node();
-    Node(int val, float p);
+    Node(int val, int weight);
 };
 
 #endif
