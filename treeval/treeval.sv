@@ -141,7 +141,7 @@ end
 // logic to handle state level processing
 always @(posedge clk) begin
     if (current_state == PROCESS_START) begin // clear the action accumulation buffer
-        ClearActionBuffer();
+        ClearActionBuffer(current_parent);
     end
     else if (current_state == PROCESS_COMPUTE) begin // push partial sum to action buffer
         ComputePartialSum(current_node);
@@ -178,20 +178,33 @@ always @(posedge clk) begin
 end
 
 // set values of all actions in the action buffer to 0 or max negative reward
-// 0 for used actions, max negative value for unused actions
+// 0 for used actions, max positive/negative value for unused actions (depending on parent strategy)
 // for now, explicitly overwrite each entry => want this to happen in 1 cycle so keep things small
 // TODO: fix hardcoding when we scale up # of actions
 task ClearActionBuffer; 
+    input logic [W_ADDR-1:0] par;
+    logic [W_STRAT-1:0] strat = node_buff[par][STRAT_START:STRAT_END];
     begin
         num_acts <= 0; // must have at least 1 action
         act_buff[0] <= 0;
-        act_buff[1] <= 10'b1000000000;
-        act_buff[2] <= 10'b1000000000;
-        act_buff[3] <= 10'b1000000000;
-        act_buff[4] <= 10'b1000000000;
-        act_buff[5] <= 10'b1000000000;
-        act_buff[6] <= 10'b1000000000;
-        act_buff[7] <= 10'b1000000000;
+        if (strat) begin // strat == maximize, so defaults are max negative
+            act_buff[1] <= 10'b1000000000;
+            act_buff[2] <= 10'b1000000000;
+            act_buff[3] <= 10'b1000000000;
+            act_buff[4] <= 10'b1000000000;
+            act_buff[5] <= 10'b1000000000;
+            act_buff[6] <= 10'b1000000000;
+            act_buff[7] <= 10'b1000000000;
+        end
+        else begin // strat == minimize, so defaults are max positive
+            act_buff[1] <= 10'b0111111111;
+            act_buff[2] <= 10'b0111111111;
+            act_buff[3] <= 10'b0111111111;
+            act_buff[4] <= 10'b0111111111;
+            act_buff[5] <= 10'b0111111111;
+            act_buff[6] <= 10'b0111111111;
+            act_buff[7] <= 10'b0111111111;
+        end
     end
 endtask
 
