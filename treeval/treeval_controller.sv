@@ -1,9 +1,10 @@
 // define local parameters
 localparam W_ADDR = 10; // based on MAX_NUM_NODES
-localparam MAX_DATA_WIDTH = 11; // maximum possible node data width based on above (weight, address, reward, action)
+localparam MAX_DATA_WIDTH = 10; // maximum possible node data width based on above (weight, address, reward, action)
 localparam MAX_CONFIG_WIDTH = 10; // maximum possible config data width based on above (# nodes)
 localparam W_ACTION = 3; // limit the # of distinct actions that can be taken (for now...)
-localparam W_REWARD = 11; // 11 remaining bits for reward
+localparam W_REWARD = 10; // 10 remaining bits for reward
+localparam W_STRAT = 1; // 1 bit used to determine the strategy (max vs. min)
 
 // define states
 localparam W_STATES = 2;
