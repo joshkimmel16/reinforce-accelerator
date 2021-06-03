@@ -1,10 +1,10 @@
 // testbench for treeval
 
-`timescale 1 ns / 100 ps
+`timescale 10 ps / 1 ps
 
 module treeval_tb;
 
-localparam CLOCK = 10; // 100 MHz
+localparam CLOCK = 125; // 800 MHz
 localparam W_ADDR = 10;
 localparam W_N_DATA = 10;
 localparam W_C_DATA = 10;
