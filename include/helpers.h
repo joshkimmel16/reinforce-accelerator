@@ -2,4 +2,4 @@
 
 Node* generate();
 
-int treeval(Node *root);
+float treeval(Node *root);

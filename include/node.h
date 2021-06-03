@@ -1,13 +1,16 @@
 #ifndef NODE_H
 #define NODE_H
 #include <vector>
+#include <map>
 
 struct Node {
     int val;
-    int weight;
+    float weight;
+    int actionId;
     std::vector<Node *> children;
+    std::map<int, float> actionEV;
     Node();
-    Node(int val, int weight);
+    Node(int id, int val, float weight);
 };
 
 #endif

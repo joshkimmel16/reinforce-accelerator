@@ -5,13 +5,14 @@
 
 int main(int argc, char* argv[]) {
     // Generate Tree
+    auto start = std::chrono::high_resolution_clock::now();
     Node node_0 = Node();
-    Node node_1 = Node(0, 64);
-    Node node_2 = Node(-10, 64);
-    Node node_3 = Node(0, 128);
-    Node node_4 = Node(100, 64);
-    Node node_5 = Node(-50, 64);
-    Node node_6 = Node(10, 128);
+    Node node_1 = Node(0, 0, 0.5);
+    Node node_2 = Node(0, -10, 0.5);
+    Node node_3 = Node(1, 0, 1);
+    Node node_4 = Node(0, 100, 0.5);
+    Node node_5 = Node(0, -50, 0.5);
+    Node node_6 = Node(1, 10, 1);
     node_0.children.push_back(&node_1);
     node_0.children.push_back(&node_2);
     node_0.children.push_back(&node_3);
@@ -22,9 +23,10 @@ int main(int argc, char* argv[]) {
     //Node *root = generate();
     
     // Time the ru
-    auto start = std::chrono::high_resolution_clock::now();
-    int a = treeval(&node_0);
+    //auto start = std::chrono::high_resolution_clock::now();
+    float a = treeval(&node_0);
     auto stop = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(stop - start);
     std::cout << duration.count() << std::endl;
+    std::cout << a << std::endl;
 }    
