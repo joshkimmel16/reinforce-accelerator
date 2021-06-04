@@ -5,7 +5,7 @@
 
 int main(int argc, char* argv[]) {
     // Generate Tree
-    auto start = std::chrono::high_resolution_clock::now();
+    auto treegen_start = std::chrono::high_resolution_clock::now();
     Node node_0 = Node();
     Node node_1 = Node(0, 0, 0.5);
     Node node_2 = Node(0, -10, 0.5);
@@ -22,11 +22,12 @@ int main(int argc, char* argv[]) {
 
     //Node *root = generate();
     
-    // Time the ru
-    //auto start = std::chrono::high_resolution_clock::now();
-    float a = treeval(&node_0);
+    auto treeval_start = std::chrono::high_resolution_clock::now();
+    float maxEV = treeval(&node_0);
     auto stop = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(stop - start);
-    std::cout << duration.count() << std::endl;
-    std::cout << a << std::endl;
+    auto treegen_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(stop - treegen_start);
+    auto treeval_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(stop - treeval_start);
+    std::cout << "Time with Tree Generation: " << treegen_duration.count() << std::endl;
+    std::cout << "Time with Tree Evaluation: " << treeval_duration.count() << std::endl;
+    std::cout << "Maximum Expected Value: " << maxEV << std::endl;
 }    
