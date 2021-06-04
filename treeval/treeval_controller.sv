@@ -4,7 +4,6 @@ localparam MAX_DATA_WIDTH = 10; // maximum possible node data width based on abo
 localparam MAX_CONFIG_WIDTH = 10; // maximum possible config data width based on above (# nodes)
 localparam W_ACTION = 3; // limit the # of distinct actions that can be taken (for now...)
 localparam W_REWARD = 10; // 10 remaining bits for reward
-localparam W_STRAT = 1; // 1 bit used to determine the strategy (max vs. min)
 
 // define states
 localparam W_STATES = 2;
@@ -17,6 +16,9 @@ localparam WRITE_RESULT = 3;
 localparam W_MSG = 64;
 localparam W_CMD = 2;
 localparam W_CMD_DATA = W_MSG - W_CMD;
+localparam CMD_START = W_MSG-1;
+localparam CMD_END = CMD_START-W_CMD+1;
+localparam DATA_START = CMD_END-1;
 
 localparam W_CMD_TYPE = 2;
 localparam CMD_RUN_COMPUTATION = 0;
@@ -26,13 +28,19 @@ localparam CMD_SET_CONFIG_DATA = 2;
 // commands for config data
 localparam W_CFG_CMD = 2;
 localparam CFG_CMD_NODES = 0;
+localparam CFG_CMD_START = W_MSG - W_CMD - 1;
+localparam CFG_CMD_END = CFG_CMD_START - W_CFG_CMD + 1;
 
 // commands for node data
 localparam W_NODE_CMD = 2;
 localparam NODE_CMD_PARENT = 0;
-localparam NODE_CMD_REWARD = 1;
-localparam NODE_CMD_ACTION = 2;
+localparam NODE_CMD_ACTION = 1;
+localparam NODE_CMD_REWARD = 2;
 localparam NODE_CMD_WEIGHT = 3;
+localparam NODE_ADDR_START = W_MSG - W_CMD - 1;
+localparam NODE_ADDR_END = NODE_ADDR_START - W_ADDR + 1;
+localparam NODE_CMD_START = NODE_ADDR_END - 1;
+localparam NODE_CMD_END = NODE_CMD_START - W_NODE_CMD + 1;
 
 // treeval_controller drives the treeval execution module.
 // software commands are written to a 64-bit command register.
@@ -176,7 +184,7 @@ always_comb begin
     end
     else if (current_state == PROCESS_MSG) begin
         // check curr_msg
-        case (curr_msg[W_MSG-1:W_MSG-1-W_COMMAND]) begin
+        case (curr_msg[CMD_START:CMD_END]) begin
             CMD_RUN_COMPUTATION: next_state = START_COMP;
             default: next_state = IDLE;
         endcase
@@ -199,15 +207,15 @@ always @(posedge clk) begin
     // TODO: need else clause?
     if (current_state == PROCESS_MSG) begin // execute command
         // TODO: default case necessary?
-        case (curr_msg[W_MSG-1:W_MSG-1-W_COMMAND]) begin
-            CMD_RUN_COMPUTATION: StartComputation(curr_msg[W_MSG-1-W_COMMAND:0]); 
-            CMD_SET_CONFIG_DATA: SetConfigData(curr_msg[W_MSG-1-W_COMMAND:0]);
-            CMD_SET_NODE_DATA: SetNodeData(curr_msg[W_MSG-1-W_COMMAND:0]);
+        case (curr_msg[CMD_START:CMD_END]) begin
+            CMD_RUN_COMPUTATION: StartComputation(curr_msg[DATA_START:0]); 
+            CMD_SET_CONFIG_DATA: SetConfigData(curr_msg[DATA_START:0]);
+            CMD_SET_NODE_DATA: SetNodeData(curr_msg[DATA_START:0]);
         endcase
     end
     else if (current_state == WRITE_RESULT) begin // generate interrupt
-        // TODO: concatenate some 0's in MSb's to get to message length
-        WriteOutMsg({treeval_act, treeval_exp});
+        // TODO: remove hardcode (message length = 64, exp = 10, act = 3, 64 - 10 - 3 = 51)
+        WriteOutMsg({51'd0, treeval_act, treeval_exp});
     end
 end
 
@@ -246,7 +254,7 @@ task SetConfigData;
     input [W_CMD_DATA-1:0] cmd;
     begin
         // TODO: default needed?
-        case (cmd[W_CMD_DATA-1:W_MSG-1-W_COMMAND]) begin
+        case (cmd[CFG_CMD_START:CFG_CMD_END]) begin
             CFG_CMD_NODES: begin
                 treeval_conf_nodes <= 1;
                 treeval_conf_data <= cmd[MAX_CONFIG_WIDTH-1:0];
@@ -260,26 +268,26 @@ task SetNodeData;
     input [W_CMD_DATA-1:0] cmd;
     begin
         // TODO: default needed?
-        case (cmd[W_CMD_DATA-1:W_MSG-1-W_COMMAND]) begin
+        case (cmd[NODE_CMD_START:NODE_CMD_END]) begin
             NODE_CMD_PARENT: begin
                 treeval_mem_par <= 1;
-                treeval_mem_addr <= cmd[MAX_DATA_WIDTH-1:0]; // TODO: fix
-                treeval_mem_data <= cmd[MAX_DATA_WIDTH-1:0]; // TODO: fix
+                treeval_mem_addr <= cmd[NODE_ADDR_START:NODE_ADDR_END];
+                treeval_mem_data <= cmd[MAX_DATA_WIDTH-1:0];
             end
             NODE_CMD_REWARD: begin
                 treeval_mem_rew <= 1;
-                treeval_mem_addr <= cmd[MAX_DATA_WIDTH-1:0]; // TODO: fix
-                treeval_mem_data <= cmd[MAX_DATA_WIDTH-1:0]; // TODO: fix
+                treeval_mem_addr <= cmd[NODE_ADDR_START:NODE_ADDR_END];
+                treeval_mem_data <= cmd[MAX_DATA_WIDTH-1:0];
             end
             NODE_CMD_ACTION: begin
                 treeval_mem_act <= 1;
-                treeval_mem_addr <= cmd[MAX_DATA_WIDTH-1:0]; // TODO: fix
-                treeval_mem_data <= cmd[MAX_DATA_WIDTH-1:0]; // TODO: fix
+                treeval_mem_addr <= cmd[NODE_ADDR_START:NODE_ADDR_END];
+                treeval_mem_data <= cmd[MAX_DATA_WIDTH-1:0];
             end
             NODE_CMD_WEIGHT: begin
                 treeval_mem_weight <= 1;
-                treeval_mem_addr <= cmd[MAX_DATA_WIDTH-1:0]; // TODO: fix
-                treeval_mem_data <= cmd[MAX_DATA_WIDTH-1:0]; // TODO: fix
+                treeval_mem_addr <= cmd[NODE_ADDR_START:NODE_ADDR_END];
+                treeval_mem_data <= cmd[MAX_DATA_WIDTH-1:0];
             end
         endcase
     end
@@ -297,6 +305,7 @@ endtask
 
 /////////////////////////////////////////////////////////////////////////////
 
+/*
 // node_data[61:0] = addr[61:52] || type[51:50] || val[49:0]
 task UpdateNodeData;
     logic [9:0] node_data_addr;
@@ -356,7 +365,7 @@ task UpdateConfigData;
         end
     end
 endtask
-
+*/
 
 
 endmodule
