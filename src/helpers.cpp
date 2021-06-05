@@ -1,8 +1,25 @@
 #include "helpers.h"
 #include <algorithm>
-Node* generate(){
+#include <fstream>
 
+Node* create_subtree(json node)
+{
+  Node* pNode = new Node(node["id"], node["val"], node["weight"]);
+  for (auto child: node["children"])
+  {
+    pNode->children.push_back(create_subtree(child["node"]));
+  }
+  return pNode;
 }
+
+Node* generate(std::string json_path)
+{
+  std::ifstream i(json_path.c_str());
+  json j;
+  i >> j;
+  return create_subtree(j["node"]);
+}
+
 float treeval(Node *root){
     if(root->children.empty()) {
         return root->val * root->weight;
