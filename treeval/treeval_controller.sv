@@ -1,25 +1,28 @@
 // define local parameters
-localparam W_ADDR = 10; // based on MAX_NUM_NODES
-localparam MAX_DATA_WIDTH = 10; // maximum possible node data width based on above (weight, address, reward, action)
-localparam MAX_CONFIG_WIDTH = 10; // maximum possible config data width based on above (# nodes)
-localparam W_ACTION = 3; // limit the # of distinct actions that can be taken (for now...)
-localparam W_REWARD = 10; // 10 remaining bits for reward
+// NOTE: some of these are defined in treeval/axi_fifo_dummy and thus cannot be redeclared here (TODO: move all out to separate file)
+
+/*
+localparam W_MSG = 64;
+localparam W_ADDR = 10;
+localparam MAX_DATA_WIDTH = 10;
+localparam MAX_CONFIG_WIDTH = 10;
+localparam W_ACTION = 3;
+localparam W_REWARD = 10;
+*/
 
 // define states
-localparam W_STATES = 2;
+localparam W_CTRL_STATES = 2;
 localparam IDLE = 0;
 localparam PROCESS_MSG = 1;
 localparam WAIT_COMP = 2;
 localparam WRITE_RESULT = 3;
 
 // define command types
-localparam W_MSG = 64;
 localparam W_CMD = 2;
 localparam W_CMD_DATA = W_MSG - W_CMD;
 localparam CMD_START = W_MSG-1;
 localparam CMD_END = CMD_START-W_CMD+1;
 localparam DATA_START = CMD_END-1;
-
 localparam W_CMD_TYPE = 2;
 localparam CMD_RUN_COMPUTATION = 0;
 localparam CMD_SET_NODE_DATA = 1;
@@ -67,13 +70,13 @@ logic i_in_msg_ack;
 logic i_out_msg_ack;
 logic i_in_msg_rdy;
 logic i_out_msg_rdy;
-logic i_in_msg;
-logic i_out_msg;
+logic [W_MSG-1:0] i_in_msg;
+logic [W_MSG-1:0] i_out_msg;
 
 logic [W_MSG-1:0] curr_msg; // hold current message to process
 
-logic [W_STATES-1:0] current_state; // current state determines what must happen in the given cycle
-logic [W_STATES-1:0] next_state; // next state determines what current_state changes to
+logic [W_CTRL_STATES-1:0] current_state; // current state determines what must happen in the given cycle
+logic [W_CTRL_STATES-1:0] next_state; // next state determines what current_state changes to
 
 // elements for internal treeval
 logic treeval_rst;
@@ -88,6 +91,8 @@ logic [MAX_CONFIG_WIDTH-1:0] treeval_conf_data;
 logic treeval_exp_change;
 logic signed [W_REWARD-1:0] treeval_exp;
 logic [W_ACTION-1:0] treeval_act;
+
+logic trigger;
 
 // instantiate AXI instance to interface w/ outside world
 axi_fifo_dummy axi (
@@ -136,8 +141,6 @@ initial begin
     treeval_conf_nodes = 0;
     
     current_state = IDLE;
-    next_state = IDLE;
-
 end
 
 // capture incoming messages from AXI
@@ -176,7 +179,7 @@ always_comb begin
     end
     else if (current_state == IDLE) begin
         if (i_in_msg_ack) begin // new message to process
-            next_state = PROCESS_MSG
+            next_state = PROCESS_MSG;
         end
         else begin
             next_state = IDLE;
@@ -184,13 +187,13 @@ always_comb begin
     end
     else if (current_state == PROCESS_MSG) begin
         // check curr_msg
-        case (curr_msg[CMD_START:CMD_END]) begin
-            CMD_RUN_COMPUTATION: next_state = START_COMP;
-            default: next_state = IDLE;
+        case (curr_msg[CMD_START:CMD_END])
+            CMD_RUN_COMPUTATION:    next_state = WAIT_COMP;
+            default:                next_state = IDLE;
         endcase
     end
     else if (current_state == WAIT_COMP) begin
-        if (treeval_exp_change) begin // if computation is done
+        if (treeval_exp_change & trigger) begin // if computation is done
             next_state = WRITE_RESULT;
         end
         else begin
@@ -202,15 +205,26 @@ always_comb begin
     end
 end
 
+always @(posedge clk) begin
+    if (current_state == PROCESS_MSG) begin
+        trigger <= 0;
+    end
+    else if (current_state == WAIT_COMP) begin
+        if (treeval_exp_change) begin
+            trigger <= 1;
+        end
+    end
+end
+
 // logic to handle state level processing
 always @(posedge clk) begin
     // TODO: need else clause?
     if (current_state == PROCESS_MSG) begin // execute command
         // TODO: default case necessary?
-        case (curr_msg[CMD_START:CMD_END]) begin
-            CMD_RUN_COMPUTATION: StartComputation(curr_msg[DATA_START:0]); 
-            CMD_SET_CONFIG_DATA: SetConfigData(curr_msg[DATA_START:0]);
-            CMD_SET_NODE_DATA: SetNodeData(curr_msg[DATA_START:0]);
+        case (curr_msg[CMD_START:CMD_END])
+            CMD_RUN_COMPUTATION:        StartComputation(curr_msg[DATA_START:0]); 
+            CMD_SET_CONFIG_DATA:        SetConfigData(curr_msg[DATA_START:0]);
+            CMD_SET_NODE_DATA:          SetNodeData(curr_msg[DATA_START:0]);
         endcase
     end
     else if (current_state == WRITE_RESULT) begin // generate interrupt
@@ -254,7 +268,7 @@ task SetConfigData;
     input [W_CMD_DATA-1:0] cmd;
     begin
         // TODO: default needed?
-        case (cmd[CFG_CMD_START:CFG_CMD_END]) begin
+        case (cmd[CFG_CMD_START:CFG_CMD_END])
             CFG_CMD_NODES: begin
                 treeval_conf_nodes <= 1;
                 treeval_conf_data <= cmd[MAX_CONFIG_WIDTH-1:0];
@@ -268,7 +282,7 @@ task SetNodeData;
     input [W_CMD_DATA-1:0] cmd;
     begin
         // TODO: default needed?
-        case (cmd[NODE_CMD_START:NODE_CMD_END]) begin
+        case (cmd[NODE_CMD_START:NODE_CMD_END])
             NODE_CMD_PARENT: begin
                 treeval_mem_par <= 1;
                 treeval_mem_addr <= cmd[NODE_ADDR_START:NODE_ADDR_END];

@@ -2,7 +2,7 @@
 
 `timescale 10 ps / 1 ps
 
-module treeval_tb;
+module treeval_controller_tb;
 
 localparam CLOCK = 125; // 800 MHz
 localparam W_ADDR = 10;
@@ -122,6 +122,7 @@ task tskSendMessage;
             logError(testName, "Never got ack from axi.");
         end
         in_msg_rdy = 0;
+        count = 0;
     end
 endtask
 
@@ -137,7 +138,7 @@ endtask
 
 task tskTreeStruct;
     logic [W_CMD_TYPE-1:0] cmd = CMD_SET_NODE_DATA;
-    logic [W_NODE_CMD-1:0] cmd_node = NODE_CFG_PARENT;
+    logic [W_NODE_CMD-1:0] cmd_node = NODE_CMD_PARENT;
     logic [W_MSG-1:0] msg;
     begin
         msg = {cmd, 10'b0000000001, cmd_node, 40'd0, 10'b0000000000}; // 0 -> 1
@@ -162,7 +163,7 @@ endtask
 
 task tskSetRewards;
     logic [W_CMD_TYPE-1:0] cmd = CMD_SET_NODE_DATA;
-    logic [W_NODE_CMD-1:0] cmd_node = NODE_CFG_REWARD;
+    logic [W_NODE_CMD-1:0] cmd_node = NODE_CMD_REWARD;
     logic [W_MSG-1:0] msg;
     begin
         msg = {cmd, 10'b0000000010, cmd_node, 40'd0, 10'b1111110110}; // node 2 = -10
@@ -185,7 +186,7 @@ endtask
 
 task tskSetActions;
     logic [W_CMD_TYPE-1:0] cmd = CMD_SET_NODE_DATA;
-    logic [W_NODE_CMD-1:0] cmd_node = NODE_CFG_ACTION;
+    logic [W_NODE_CMD-1:0] cmd_node = NODE_CMD_ACTION;
     logic [W_MSG-1:0] msg;
     begin
         msg = {cmd, 10'b0000000000, cmd_node, 46'd0, {STRAT_MAX, 3'b000}}; // node 0 => MAX, don't care about action
@@ -213,7 +214,7 @@ endtask
 
 task tskSetTreeWeights;
     logic [W_CMD_TYPE-1:0] cmd = CMD_SET_NODE_DATA;
-    logic [W_NODE_CMD-1:0] cmd_node = NODE_CFG_PARENT;
+    logic [W_NODE_CMD-1:0] cmd_node = NODE_CMD_WEIGHT;
     logic [W_MSG-1:0] msg;
     begin
         msg = {cmd, 10'b0000000001, cmd_node, 40'd0, 10'b0001000000}; // node 1 = 0.5 = 64
@@ -267,7 +268,10 @@ task tskCaptureOutput;
             logError("tskCaptureOutput", "Never got outbound message from controller.");
         end
         else begin
-            // TODO: verify that outbound message has correct data (action = PLAY, reward = 7)
+            // verify that outbound message has correct data (action = PLAY, reward = 7)
+            if (~(to_verify == {51'd0, ACT_PLAY, 10'b0000000111})) begin
+                logError("tskCaptureOutput", "Incorrect message returned from controller.");
+            end
         end
 
     end

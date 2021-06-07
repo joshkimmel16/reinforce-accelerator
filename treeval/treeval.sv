@@ -61,7 +61,7 @@ logic [MAX_NUM_ACTIONS-1:0] num_acts; // track # of actions for the given node
 // define drivers for outputs
 assign exp = node_buff[0][REWARD_START:REWARD_END]; // always output root node's reward
 assign act = node_buff[0][ACTION_START:ACTION_END]; // always output root node's action
-assign exp_change = (current_node == num_nodes-1); // once we've cycled back to the final node, indicate that the expectation must have changed
+assign exp_change = (current_node == num_nodes-1 && current_state == PROCESS_START); // once we've cycled back to the final node, indicate that the expectation must have changed
 
 // initialize root node values that need to be initialized
 initial begin
