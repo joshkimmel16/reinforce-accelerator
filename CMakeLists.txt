@@ -24,6 +24,7 @@ include_directories(include)
 
 add_library(helpers src/helpers.cpp)
 add_library(node src/node.cpp)
+add_library(treeval_accelerator src/treeval_accelerator.cpp)
 
 add_executable(main src/main.cpp)
 target_link_libraries(main node helpers)
