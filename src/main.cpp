@@ -22,7 +22,7 @@ int main(int argc, char* argv[]) {
     node_1.children.push_back(&node_5);
     node_1.children.push_back(&node_6);
     */
-    Node* root = generate("../../../src/tree.json");
+    Node* root = generate("../src/bet.json");
 
     auto treeval_start = std::chrono::high_resolution_clock::now();
     float maxEV = treeval(root);
