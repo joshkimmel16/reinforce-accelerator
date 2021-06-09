@@ -139,8 +139,24 @@ always_comb begin
 end
 
 // logic to handle state level processing
+// also handle conf/node updates so as to encapsulate all updates of node/action buffers in 1 block
 always @(posedge clk) begin
-    if (current_state == PROCESS_START) begin // clear the action accumulation buffer
+    if (mem_weight) begin
+        node_buff[mem_addr][WEIGHT_START:WEIGHT_END] <= mem_data[W_WEIGHT-1:0]; 
+    end
+    else if (mem_par) begin
+        node_buff[mem_addr][PARENT_START:PARENT_END] <= mem_data[W_ADDR-1:0];
+    end
+    else if (mem_rew) begin
+        node_buff[mem_addr][REWARD_START:REWARD_END] <= mem_data[W_REWARD-1:0];
+    end
+    else if (mem_act) begin // multiplex strategy with action as they are related
+        node_buff[mem_addr][STRAT_START:STRAT_END] <= mem_data[W_ACTION+W_STRAT:W_ACTION];
+        node_buff[mem_addr][ACTION_START:ACTION_END] <= mem_data[W_ACTION-1:0];
+    end
+    
+    // can safely ignore processing b/c a reset will be necessary anyways...
+    else if (current_state == PROCESS_START) begin // clear the action accumulation buffer
         ClearActionBuffer(current_parent);
     end
     else if (current_state == PROCESS_COMPUTE) begin // push partial sum to action buffer
@@ -151,6 +167,7 @@ always @(posedge clk) begin
     end
 end
 
+/*
 // capture inbound node values
 // this is a sideband interface of sorts
 always @(posedge clk) begin
@@ -168,6 +185,7 @@ always @(posedge clk) begin
         node_buff[mem_addr][ACTION_START:ACTION_END] <= mem_data[W_ACTION-1:0];
     end
 end
+*/
 
 // capture inbound config values
 // this is a sideband interface of sorts
