@@ -153,10 +153,10 @@ always @(posedge clk) begin
     if (rst) begin
         InvalidateInFifo();
     end
-    else if (i_in_msg_ack) begin
+    if (i_in_msg_ack) begin
         in_fifo[in_fifo_head][W_MSG] <= 0; // invalidate current msg
     end
-    else if (o_in_msg_rdy && ~o_should_ack) begin
+    if (o_in_msg_rdy && ~o_should_ack) begin
         if (~(in_fifo[in_fifo_tail][W_MSG])) begin // check to ensure tail slot is not already full
             in_fifo[in_fifo_tail] <= {1'b1, o_in_msg}; // capture message (w/ valid bit)
         end
@@ -168,10 +168,10 @@ always @(posedge clk) begin
     if (rst) begin
         InvalidateOutFifo();
     end
-    else if (o_out_msg_ack) begin
+    if (o_out_msg_ack) begin
         out_fifo[out_fifo_head][W_MSG] <= 0; // invalidate current msg
     end
-    else if (i_out_msg_rdy && ~i_should_ack) begin
+    if (i_out_msg_rdy && ~i_should_ack) begin
         if (~(out_fifo[out_fifo_tail][W_MSG])) begin // check to ensure tail slot is not already full
             out_fifo[out_fifo_tail] <= {1'b1, i_out_msg}; // capture message (w/ valid bit)
         end

@@ -131,16 +131,16 @@ treeval execution_unit (
 
 // initialize any values that need to be initialized
 initial begin
-    i_in_msg_ack = 0;
-    i_out_msg_rdy = 0;
+    i_in_msg_ack <= 0;
+    i_out_msg_rdy <= 0;
     
-    treeval_mem_weight = 0;
-    treeval_mem_par = 0;
-    treeval_mem_rew = 0;
-    treeval_mem_act = 0;
-    treeval_conf_nodes = 0;
+    treeval_mem_weight <= 0;
+    treeval_mem_par <= 0;
+    treeval_mem_rew <= 0;
+    treeval_mem_act <= 0;
+    treeval_conf_nodes <= 0;
     
-    current_state = IDLE;
+    current_state <= IDLE;
 end
 
 // capture incoming messages from AXI
@@ -152,6 +152,7 @@ always @(posedge clk) begin
     end
     else begin
         i_in_msg_ack <= 0;
+        curr_msg <= curr_msg;
     end
 end
 
@@ -159,6 +160,12 @@ end
 always @(posedge clk) begin
     if (i_out_msg_ack) begin
         i_out_msg_rdy <= 0;
+    end
+    else if (current_state == WRITE_RESULT) begin
+        i_out_msg_rdy <= 1;
+    end
+    else begin
+        i_out_msg_rdy <= i_out_msg_rdy;
     end
 end
 
@@ -231,8 +238,17 @@ always @(posedge clk) begin
         // TODO: remove hardcode (message length = 64, exp = 10, act = 3, 64 - 10 - 3 = 51)
         WriteOutMsg({51'd0, treeval_act, treeval_exp});
     end
+    else begin
+        treeval_rst <= 0;
+        treeval_conf_nodes <= 0;
+        treeval_mem_par <= 0;
+        treeval_mem_rew <= 0;
+        treeval_mem_act <= 0;
+        treeval_mem_weight <= 0;
+    end
 end
 
+/*
 // de-assert any signal that should only be asserted for 1 cycle in treeval
 always @(posedge clk) begin
     if (treeval_rst) begin
@@ -254,12 +270,19 @@ always @(posedge clk) begin
         treeval_mem_weight <= 0;
     end
 end
+*/
 
 // to start a computation, simply reset the execution unit
 task StartComputation;
     input [W_CMD_DATA-1:0] cmd;
     begin
         treeval_rst <= 1;
+        
+        treeval_conf_nodes <= 0;
+        treeval_mem_par <= 0;
+        treeval_mem_rew <= 0;
+        treeval_mem_act <= 0;
+        treeval_mem_weight <= 0;
     end
 endtask
 
@@ -267,11 +290,24 @@ endtask
 task SetConfigData;
     input [W_CMD_DATA-1:0] cmd;
     begin
-        // TODO: default needed?
         case (cmd[CFG_CMD_START:CFG_CMD_END])
             CFG_CMD_NODES: begin
                 treeval_conf_nodes <= 1;
                 treeval_conf_data <= cmd[MAX_CONFIG_WIDTH-1:0];
+
+                treeval_rst <= 0;
+                treeval_mem_par <= 0;
+                treeval_mem_rew <= 0;
+                treeval_mem_act <= 0;
+                treeval_mem_weight <= 0;
+            end
+            default begin
+                treeval_rst <= 0;
+                treeval_conf_nodes <= 0;
+                treeval_mem_par <= 0;
+                treeval_mem_rew <= 0;
+                treeval_mem_act <= 0;
+                treeval_mem_weight <= 0;
             end
         endcase
     end
@@ -287,21 +323,53 @@ task SetNodeData;
                 treeval_mem_par <= 1;
                 treeval_mem_addr <= cmd[NODE_ADDR_START:NODE_ADDR_END];
                 treeval_mem_data <= cmd[MAX_DATA_WIDTH-1:0];
+
+                treeval_rst <= 0;
+                treeval_conf_nodes <= 0;
+                treeval_mem_rew <= 0;
+                treeval_mem_act <= 0;
+                treeval_mem_weight <= 0;
             end
             NODE_CMD_REWARD: begin
                 treeval_mem_rew <= 1;
                 treeval_mem_addr <= cmd[NODE_ADDR_START:NODE_ADDR_END];
                 treeval_mem_data <= cmd[MAX_DATA_WIDTH-1:0];
+
+                treeval_rst <= 0;
+                treeval_conf_nodes <= 0;
+                treeval_mem_par <= 0;
+                treeval_mem_act <= 0;
+                treeval_mem_weight <= 0;
             end
             NODE_CMD_ACTION: begin
                 treeval_mem_act <= 1;
                 treeval_mem_addr <= cmd[NODE_ADDR_START:NODE_ADDR_END];
                 treeval_mem_data <= cmd[MAX_DATA_WIDTH-1:0];
+
+                treeval_rst <= 0;
+                treeval_conf_nodes <= 0;
+                treeval_mem_par <= 0;
+                treeval_mem_rew <= 0;
+                treeval_mem_weight <= 0;
             end
             NODE_CMD_WEIGHT: begin
                 treeval_mem_weight <= 1;
                 treeval_mem_addr <= cmd[NODE_ADDR_START:NODE_ADDR_END];
                 treeval_mem_data <= cmd[MAX_DATA_WIDTH-1:0];
+
+                treeval_rst <= 0;
+                treeval_conf_nodes <= 0;
+                treeval_mem_par <= 0;
+                treeval_mem_rew <= 0;
+                treeval_mem_act <= 0;
+            end
+            default begin
+                treeval_rst <= 0;
+                treeval_conf_nodes <= 0;
+                treeval_mem_par <= 0;
+                treeval_mem_rew <= 0;
+                treeval_mem_act <= 0;
+                treeval_mem_weight <= 0;
             end
         endcase
     end
@@ -311,11 +379,17 @@ endtask
 task WriteOutMsg;
     input logic [W_MSG-1:0] out_msg;
     begin
-        i_out_msg_rdy <= 1;
+        //i_out_msg_rdy <= 1;
         i_out_msg <= out_msg;
+
+        treeval_rst <= 0;
+        treeval_conf_nodes <= 0;
+        treeval_mem_par <= 0;
+        treeval_mem_rew <= 0;
+        treeval_mem_act <= 0;
+        treeval_mem_weight <= 0;
     end
 endtask
-
 
 /////////////////////////////////////////////////////////////////////////////
 
