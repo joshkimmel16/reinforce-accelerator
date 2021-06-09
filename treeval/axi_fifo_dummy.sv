@@ -46,8 +46,169 @@ assign o_out_msg = out_fifo[out_fifo_head][W_MSG-1:0];
 
 // initialize all FIFO queues to invalid
 initial begin
-    InvalidateFifos();
+    InvalidateInFifo();
+    InvalidateOutFifo();
 end
+
+// logic to drive in_fifo_head
+always @(posedge clk) begin
+    if (rst) begin
+        in_fifo_head <= 0;
+    end
+    else if (i_in_msg_ack) begin
+        in_fifo_head <= in_fifo_head + 1; // move to next slot (overflow is desirable)
+    end
+    else begin
+        in_fifo_head <= in_fifo_head;
+    end
+end
+
+// logic to drive in_fifo_tail
+always @(posedge clk) begin
+    if (rst) begin
+        in_fifo_tail <= 0;
+    end
+    else if (o_in_msg_rdy && ~o_should_ack) begin
+        if (~(in_fifo[in_fifo_tail][W_MSG])) begin
+            in_fifo_tail <= in_fifo_tail + 1; // move to next slot (overflow is desirable)
+        end
+        else begin
+            in_fifo_tail <= in_fifo_tail;
+        end
+    end
+    else begin
+        in_fifo_tail <= in_fifo_tail;
+    end
+end
+
+// logic to drive i_should_ack
+always @(posedge clk) begin
+    if (rst) begin
+        i_should_ack <= 0;
+    end
+    else if (i_out_msg_rdy && ~i_should_ack) begin
+        if (~(out_fifo[out_fifo_tail][W_MSG])) begin
+            i_should_ack <= 1;
+        end
+        else begin
+            i_should_ack <= 0;
+        end
+    end
+    else begin
+        i_should_ack <= 0;
+    end
+end
+
+// logic to drive out_fifo_head
+always @(posedge clk) begin
+    if (rst) begin
+        out_fifo_head <= 0;
+    end
+    else if (o_out_msg_ack) begin
+        out_fifo_head <= out_fifo_head + 1; // move to next slot (overflow is desirable)
+    end
+    else begin
+        out_fifo_head <= out_fifo_head;
+    end
+end
+
+// logic to drive out_fifo_tail
+always @(posedge clk) begin
+    if (rst) begin
+        out_fifo_tail <= 0;
+    end
+    else if (i_out_msg_rdy && ~i_should_ack) begin
+        if (~(out_fifo[out_fifo_tail][W_MSG])) begin
+            out_fifo_tail <= out_fifo_tail + 1; // move to next slot (overflow is desirable)
+        end
+        else begin
+            out_fifo_tail <= out_fifo_tail;
+        end
+    end
+    else begin
+        out_fifo_tail <= out_fifo_tail;
+    end
+end
+
+// logic to drive o_should_ack
+always @(posedge clk) begin
+    if (rst) begin
+        o_should_ack <= 0;
+    end
+    else if (o_in_msg_rdy && ~o_should_ack) begin
+        if (~(in_fifo[in_fifo_tail][W_MSG])) begin
+            o_should_ack <= 1;
+        end
+        else begin
+            o_should_ack <= 0;
+        end
+    end
+    else begin
+        o_should_ack <= 0;
+    end
+end
+
+// logic to drive in_fifo
+always @(posedge clk) begin
+    if (rst) begin
+        InvalidateInFifo();
+    end
+    else if (i_in_msg_ack) begin
+        in_fifo[in_fifo_head][W_MSG] <= 0; // invalidate current msg
+    end
+    else if (o_in_msg_rdy && ~o_should_ack) begin
+        if (~(in_fifo[in_fifo_tail][W_MSG])) begin // check to ensure tail slot is not already full
+            in_fifo[in_fifo_tail] <= {1'b1, o_in_msg}; // capture message (w/ valid bit)
+        end
+    end
+end
+
+// logic to drive out_fifo
+always @(posedge clk) begin
+    if (rst) begin
+        InvalidateOutFifo();
+    end
+    else if (o_out_msg_ack) begin
+        out_fifo[out_fifo_head][W_MSG] <= 0; // invalidate current msg
+    end
+    else if (i_out_msg_rdy && ~i_should_ack) begin
+        if (~(out_fifo[out_fifo_tail][W_MSG])) begin // check to ensure tail slot is not already full
+            out_fifo[out_fifo_tail] <= {1'b1, i_out_msg}; // capture message (w/ valid bit)
+        end
+    end
+end
+
+// helper task to invalidate in FIFO queue
+task InvalidateInFifo;
+    integer i = 0;
+    begin
+        in_fifo[0][W_MSG] <= 0; 
+        in_fifo[1][W_MSG] <= 0; 
+        in_fifo[2][W_MSG] <= 0; 
+        in_fifo[3][W_MSG] <= 0; 
+        in_fifo[4][W_MSG] <= 0; 
+        in_fifo[5][W_MSG] <= 0; 
+        in_fifo[6][W_MSG] <= 0; 
+        in_fifo[7][W_MSG] <= 0;
+    end
+endtask
+
+// helper task to invalidate out FIFO queue
+task InvalidateOutFifo;
+    integer i = 0;
+    begin
+        out_fifo[0][W_MSG] <= 0;
+        out_fifo[1][W_MSG] <= 0;
+        out_fifo[2][W_MSG] <= 0;
+        out_fifo[3][W_MSG] <= 0;
+        out_fifo[4][W_MSG] <= 0;
+        out_fifo[5][W_MSG] <= 0;
+        out_fifo[6][W_MSG] <= 0;
+        out_fifo[7][W_MSG] <= 0;
+    end
+endtask
+
+/*
 
 // on reset, invalidate all FIFO queues
 // TODO: multiple drivers?
@@ -121,5 +282,7 @@ task InvalidateFifos;
         in_fifo[7][W_MSG] <= 0; out_fifo[7][W_MSG] <= 0;
     end
 endtask
+
+*/
 
 endmodule
