@@ -1,15 +1,6 @@
 // define local parameters
 // NOTE: some of these are defined in treeval/axi_fifo_dummy and thus cannot be redeclared here (TODO: move all out to separate file)
 
-/*
-localparam W_MSG = 64;
-localparam W_ADDR = 10;
-localparam MAX_DATA_WIDTH = 10;
-localparam MAX_CONFIG_WIDTH = 10;
-localparam W_ACTION = 3;
-localparam W_REWARD = 10;
-*/
-
 // define states
 localparam W_CTRL_STATES = 2;
 localparam IDLE = 0;
@@ -225,7 +216,6 @@ end
 
 // logic to handle state level processing
 always @(posedge clk) begin
-    // TODO: need else clause?
     if (current_state == PROCESS_MSG) begin // execute command
         // TODO: default case necessary?
         case (curr_msg[CMD_START:CMD_END])
@@ -247,30 +237,6 @@ always @(posedge clk) begin
         treeval_mem_weight <= 0;
     end
 end
-
-/*
-// de-assert any signal that should only be asserted for 1 cycle in treeval
-always @(posedge clk) begin
-    if (treeval_rst) begin
-        treeval_rst <= 0;
-    end
-    if (treeval_conf_nodes) begin
-        treeval_conf_nodes <= 0;
-    end
-    if (treeval_mem_par) begin
-        treeval_mem_par <= 0;
-    end
-    if (treeval_mem_rew) begin
-        treeval_mem_rew <= 0;
-    end
-    if (treeval_mem_act) begin
-        treeval_mem_act <= 0;
-    end
-    if (treeval_mem_weight) begin
-        treeval_mem_weight <= 0;
-    end
-end
-*/
 
 // to start a computation, simply reset the execution unit
 task StartComputation;
@@ -317,7 +283,6 @@ endtask
 task SetNodeData;
     input [W_CMD_DATA-1:0] cmd;
     begin
-        // TODO: default needed?
         case (cmd[NODE_CMD_START:NODE_CMD_END])
             NODE_CMD_PARENT: begin
                 treeval_mem_par <= 1;
@@ -379,7 +344,6 @@ endtask
 task WriteOutMsg;
     input logic [W_MSG-1:0] out_msg;
     begin
-        //i_out_msg_rdy <= 1;
         i_out_msg <= out_msg;
 
         treeval_rst <= 0;
@@ -390,70 +354,5 @@ task WriteOutMsg;
         treeval_mem_weight <= 0;
     end
 endtask
-
-/////////////////////////////////////////////////////////////////////////////
-
-/*
-// node_data[61:0] = addr[61:52] || type[51:50] || val[49:0]
-task UpdateNodeData;
-    logic [9:0] node_data_addr;
-    logic [1:0] node_data_type;
-    logic [49:0] node_data_val;
-    begin
-        node_data_addr[9:0] = command_data[61:52];
-        node_data_type[1:0] = command_data[51:50];
-        node_data_val[49:0] = command_data[49:0];
-
-        // set address of which node to update
-        treeval_mem_addr = node_data_addr[W_ADDR-1:0];
-
-        // set data for field being updated
-        treeval_mem_data = node_data_val[MAX_DATA_WIDTH-1:0];
-
-        // decode which field of node is being updated
-        // one-hot encode the data line indicating the field
-        if (node_data_type == 2'b00) begin
-            treeval_mem_par = 1; // parent field
-            treeval_mem_act = 0;
-            treeval_mem_rew = 0;
-            treeval_mem_weight = 0;
-        end
-        else if (node_data_type == 2'b01) begin
-            treeval_mem_par = 0;
-            treeval_mem_act = 1; // action field
-            treeval_mem_rew = 0;
-            treeval_mem_weight = 0;
-        end
-        else if (node_data_type == 2'b10) begin
-            treeval_mem_par = 0;
-            treeval_mem_act = 0;
-            treeval_mem_rew = 1; // reward field
-            treeval_mem_weight = 0;
-        end
-        else begin
-            treeval_mem_par = 0;
-            treeval_mem_act = 0;
-            treeval_mem_rew = 0;
-            treeval_mem_weight = 1; // weight field
-        end
-    end
-endtask
-
-// conf_data[61:0] = type[61:60] || val[59:0]
-task UpdateConfigData;
-    logic [1:0] conf_data_type;
-    logic [59:0] conf_data_val;
-    begin
-        conf_data_type[1:0] = command_data[61:60];
-        conf_data_val[59:0] = command_data[59:0];
-
-        if (conf_data_type == 2'b00) begin
-            treeval_conf_nodes = 1;
-            treeval_conf_data = conf_data_val[MAX_CONFIG_WIDTH-1:0];
-        end
-    end
-endtask
-*/
-
 
 endmodule
